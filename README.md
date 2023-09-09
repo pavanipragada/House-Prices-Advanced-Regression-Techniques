@@ -1,6 +1,7 @@
+
 # House Prices - Advanced Regression Techniques
 
-## Dataset
+This project aims to predict house prices using advanced regression techniques. It utilizes a dataset from Kaggle, specifically from the "House Prices - Advanced Regression Techniques" competition.
 
 ### Source and Editing
 * The dataset of House Prices - Advanced Regression Techniques details has been considered from Kaggle.
