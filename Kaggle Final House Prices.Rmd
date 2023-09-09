@@ -15,7 +15,6 @@ library(tidyverse)
 library(ggplot2)
 library(kableExtra)
 ```
-
 # 1. Introduction and Project Goal
 
 In the Kaggle competition "House Prices - Advanced Regression Techniques," business analystics students are asked to forecast the sale prices of residential homes in Ames, using 79 explanatory variables that describe various attributes of the properties.
@@ -27,7 +26,6 @@ The goal of the competition is to predict the sales price for each house, to sol
 test <- read_csv("test.csv")
 train <- read_csv("train.csv")
 ```
-
 # 2. Description of the Data
 
 The dataset contains a train set, consisting of 1460 observations and 83 variables with known SalePrice, and a test set, consisting of 1459 observations and 80 variables without SalePrice. The target variable for the competition is SalePrice in dollars, which is calculated using the root mean squared error (RMSE) between the projected sale prices and the actual sale prices. The variables represent various aspects of the properties, such as their condition, location, quality, age, and size. Here are some of description of the variables:
