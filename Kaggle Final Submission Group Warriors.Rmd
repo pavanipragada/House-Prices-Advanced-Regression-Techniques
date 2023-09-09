@@ -1,0 +1,334 @@
+---
+title: "Kaggle Final"
+author: "The Warriors"
+date: "16th April'2023"
+output:
+  html_document:
+    toc: true
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, include = TRUE}
+# Loading required libraries like tidyverse, ggplot2 and kableExtra for this project
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+```
+
+# 1. Introduction and Project Goal
+
+In the Kaggle competition "House Prices - Advanced Regression Techniques," business analystics students are asked to forecast the sale prices of residential homes in Ames, using 79 explanatory variables that describe various attributes of the properties.
+
+The goal of the competition is to predict the sales price for each house, to solve a relevant problem in the real estate industry. The evaluation metric used in the competition is the root mean squared error (RMSE) between the predicted sale prices and the actual sale prices.
+
+```{r message = F}
+# Reading train dataset and test dataset using read_csv function
+test <- read_csv("test.csv")
+train <- read_csv("train.csv")
+```
+
+# 2. Description of the Data
+
+The dataset contains a train set, consisting of 1460 observations and 83 variables with known SalePrice, and a test set, consisting of 1459 observations and 80 variables without SalePrice. The target variable for the competition is SalePrice in dollars, which is calculated using the root mean squared error (RMSE) between the projected sale prices and the actual sale prices. The variables represent various aspects of the properties, such as their condition, location, quality, age, and size. Here are some of description of the variables:
+
+1.  SalePrice - the property's sale price in dollars. This is the target variable that you're trying to predict.
+2.  LotFrontage: Linear feet of street connected to property
+3.  LotArea: Lot size in square feet
+4.  Street: Type of road access
+5.  Alley: Type of alley access
+6.  Neighborhood: Physical locations within Ames city limits
+7.  OverallQual: Overall material and finish quality
+8.  OverallCond: Overall condition rating
+9.  TotalBsmtSF: Total square feet of basement area
+10. 1stFlrSF: First Floor square feet
+11. 2ndFlrSF: Second floor square feet
+12. GrLivArea: Above grade (ground) living area square feet
+13. BsmtFullBath: Basement full bathrooms
+14. BsmtHalfBath: Basement half bathrooms
+15. FullBath: Full bathrooms above grade
+16. HalfBath: Half baths above grade
+17. GarageType: Garage location
+18. GarageArea: Size of garage in square feet
+19. SaleType: Type of sale
+20. SaleCondition: Condition of sale
+
+# 3. Missing Data
+
+> Scope: The dataset contains NA values in several columns, which need to be handled carefully during data preprocessing. However, NA represents a missing feature rather than a value when it comes to some of the variables (mentioned in the data dictionary). To overcome the problem of NA we encode these variables using 'replace_na()\` function in dplyr.
+>
+> Proposed Solution: The missing values can be imputed or removed using a variety of methods, including deletion of the entire column or row, regression imputation, mean or median imputation, and mode imputation. To avoid bias or overfitting in the models, it is essential to handle missing values properly.
+>
+> Deriving a new variable named `totalsqft` which is the sum of Total square feet of basement area, Above grade (ground) living area square feet and Garage area. Deriving a new variable named `totalbath` which is the sum of basement full bathrooms Basement half bathrooms,Full bathrooms above grade and Half baths above grade. Deriving a new variable named `totalporch` which is the sum of Wood deck area in square feet, Open porch area in square feet, Enclosed porch area in square feet, Three season porch area in square feet, Screen porch area in square feet.
+
+```{r message=F}
+#Counting missing data from train set
+count_missings <- function(x) sum(is.na(x)) 
+train %>% 
+  summarize_all(count_missings) %>%
+  kable(caption = "Table of missing count in train dataset") %>% 
+  kable_styling()
+
+test %>%
+  summarize_all(count_missings) %>%
+  kable(caption = "Table of missing count in test dataset") %>% 
+  kable_styling()
+```
+
+> Imputing missing values with median values is a common strategy in data cleaning and preprocessing. The median is a robust measure of central tendency that is not affected by extreme values or outliers, making it a useful measure to use when dealing with missing data.So, Lot Frontage is having 227 NA values which is imputated with median values.
+
+```{r}
+#Deriving new variables by combining relevant existing variables in the train dataset
+train <- train %>% 
+  mutate(totalsqft = TotalBsmtSF + GrLivArea + GarageArea)%>%
+  mutate(totalbath = FullBath + HalfBath + BsmtFullBath + BsmtHalfBath)%>%
+  mutate(LotFrontage = replace_na(LotFrontage, median(LotFrontage, na.rm = T)))%>%
+  mutate(totalporch = WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch)%>%
+  mutate(OverallQual = factor(OverallQual))
+```
+
+> For GarageType variable and its related variables, NA does not actually means missing of data but rather that the house is having a garage in it. So, replacing all NA values in Garage Type,GarageFinish,GarageQual with "No Garage".Similarly for Fireplace Quality as well.
+
+```{r}
+#Replacing NA values of GarageType and Fireplace variables
+train <- train %>% 
+  mutate(GarageType = replace_na(data = GarageType, replace = "No Garage"), FireplaceQu = replace_na(data = FireplaceQu, replace = "No Fireplace"))
+```
+
+# 4. Visualizations
+
+Let's check how a variable changes with respect to our target variable. For example, take the "Overall Quality" variable and visualize it.
+
+> "OverallQual" is encoded as numeric but should be changed to a categorical value. If it is non-linearly related to the target, then encoding it as a factor would work best. If the relationship is linear, then numeric is fine.
+>
+> Sale Price vs Overall Quality is plotted using the LOESS method, a local regression that determines portions of the regression line based on "local" values and captures the non-linear patterns and fits a curve to the data using weighted least squares.
+
+```{r}
+#Plotting Sale Price vs Overall Quality in LOESS method
+ggplot(train, aes(as.numeric(OverallQual), SalePrice)) +
+  geom_point() +
+  geom_smooth(method = "loess",se=F,col = 3) + # Local regression named LOESS
+  labs(title = "SalePrice ~ OverallQual, with local regression")
+```
+
+> Sale Price vs Overall Quality(numeric) is plotted, and the green line describes the regression line, which is exponential in nature.
+>
+> The Sale Price vs Overall Quality regression line is also plotted using the OLS method - Ordinary Least Squares, which is a commonly used method in regression analysis to estimate the parameters of a linear regression model. The goal of OLS is to minimize the sum of the squared differences between the observed values of the dependent variable and the predicted values of the dependent variable.
+
+```{r}
+#Plotting Sale Price vs Overall Quality in LOESS method and OLS method
+ggplot(train, aes(as.numeric(OverallQual), SalePrice)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  geom_smooth(method ="loess", se = F, col = 3) + # Local regression named LOESS
+  labs(title = "SalePrice ~ OverallQual, with linear in Blue and local regression in green")
+```
+
+> Sale Price vs Overall Quality is plotted with a local regression line in green and a linear regression line in blue.
+>
+> It is evident from the above-plotted graphs that as the relationship is not linear between the output variable and predictor, factoring the predictor would work best.
+>
+> Analyzing the lm results(Sale Price vs Overall Quality) with numeric predictor and factored predictor.
+
+```{r}
+#Deploying lm function to saleprice vs overall quality(numeric)
+lm(SalePrice ~ OverallQual, data = train) %>% summary() 
+
+#Deploying lm function to saleprice vs overall quality(factor)
+lm(SalePrice ~ factor(OverallQual), data = train) %>% summary() 
+```
+
+> After the above obtained results, R-square value for lm model with numeric Overall Quality is 0.62, whereas for factored OverallQuality is 0.68. The model with the factor variable is much more complicated. It produces not one average (or coefficient) but 10 (including the intercept), one for each quality level; this allows it to describe the relationship between quality and price more precisely.
+>
+> So, Factoring Overall Quality variable would work best for this project.
+
+# 5.Modeling process
+
+The steps of modeling process includes:
+
+> **Data exploration**: The first step in the modeling process is to explore the data to understand the distribution of the features, identify any missing values or outliers, and identify potential relationships between the features and the target variable (sale price).
+>
+> **Data pre-processing**: Once the data has been explored, it needs to be preprocessed to prepare it for modeling. This typically involves filling in missing values, encoding categorical variables, and scaling numerical features.
+>
+> **Model evaluation**: Once a model has been trained on the data, it needs to be evaluated to determine its performance. This typically involves using cross-validation techniques to estimate the model's generalization error, and evaluating the model's performance on a held-out test set.
+>
+> **Final model selection**: Once the model has been refined, the final step is to select the best model and generate predictions on the test set. The predictions can then be submitted to the Kaggle competition to see how well the model performs compared to other participants.
+
+```{r message = F}
+#Fitting linear model
+lm(SalePrice ~ log(totalsqft)*BedroomAbvGr + Neighborhood + LandSlope + LandContour + OverallQual + GarageCars + totalbath + FireplaceQu + totalporch*LotFrontage  + GarageType + YearBuilt*OverallQual + LotArea*LotFrontage + OverallCond + YearBuilt*BldgType + Street, data = train) %>% summary()
+
+```
+
+The 19 variables and 4 interactions among them taken to evaluate the model are:
+
+> **1.log(totalsqft) \* BedroomAbvGr:** This variable likely represents the size of the house (as measured by total square footage) and the number of bedrooms. It makes sense that these factors would be related to the price of a house, as larger houses with more bedrooms are generally more expensive.
+>
+> **2.Neighborhood:** The neighborhood in which a house is located can be an important factor in determining its price. Certain neighborhoods may be more desirable than others due to factors such as proximity to amenities, school districts, or overall livability.
+>
+> **3.LandSlope and LandContour:** The slope and contour of a piece of land can impact its suitability for building and affect the value of any structures built on it. For example, a steeply sloped lot may require significant grading or retaining walls to build on, which can increase the cost of construction and decrease the value of the property.
+>
+> **4.OverallQual:** The overall quality of a house is an important factor in determining its price. This variable likely represents an aggregate measure of various aspects of a house, such as the quality of materials used, the condition of the interior and exterior, and the overall design and layout.
+>
+> **5.GarageCars:** The number of cars that can be parked in a garage is an indicator of the size of the garage, which is a factor that can impact the price of a house.
+>
+> **6.totalbath:** The number of bathrooms in a house is an important factor in determining its price. Houses with more bathrooms are generally more expensive, as they are seen as more luxurious and provide greater convenience.
+>
+> **7.FireplaceQu:** The quality of a fireplace can be a factor in determining the price of a house. Fireplaces are often seen as desirable features that can add to the comfort and ambiance of a home.
+>
+> **8.totalporch \* LotFrontage:** The size and quality of any porches or outdoor living spaces can impact the value of a house, as these areas can provide additional living and entertainment space. The interaction term between totalporch and LotFrontage may capture a more complex relationship between these variables.
+>
+> **9.GarageType:** The type of garage can be a factor in determining the price of a house. For example, a detached garage may be seen as more desirable than an attached garage, as it provides greater privacy and separation from the main living space.
+>
+> **10.YearBuilt:** The year in which a house was built can be an important factor in determining its price. Older houses may be less desirable due to factors such as outdated design or materials, while newer houses may be more expensive due to greater amenities or more modern design.
+>
+> **11.BldgType:** The type of building can be a factor in determining the price of a house. For example, a single-family home may be more expensive than a multi-family dwelling, as it provides greater privacy and ownership rights.
+>
+> **12.Street:** The type of street on which a house is located can be a factor in determining its price. For example, a house located on a quiet, tree-lined street may be more desirable than one located on a busy, noisy street.
+>
+> **13.YearBuilt \* OverallQual and LotArea \* LotFrontage:** These variables represent interaction terms between two other variables. Interaction terms can be useful for capturing more complex relationships between variables that may impact the outcome variable (in this case, house price). For example, the interaction term between YearBuilt and OverallQual may capture the fact that
+
+# 6. Model fits requirements
+
+Cross-validation is a required parameter to fit the model. Over fitting occurs when a model fits the training data too closely and, as a result, does not generalize well to new data. By using cross-validation to evaluate the model's performance on unseen data, we can assess whether the model is over fitting and take steps to address the issue if necessary.
+
+To avoid over fitting and create models with appropriate complexity, cross validation is done in this project.The train set data is split in a 70/30 ratio and named train_fold and validation_fold. The training set is then used to train the model, while the validation set is used to evaluate its performance.
+
+```{r}
+# To perform cross validation, Data is split in 70-30 ratio
+set.seed(124)
+index <- sample(x = 1:nrow(train), size = nrow(train)*0.7, replace = F)
+head(index)
+```
+
+```{r}
+# Subset train using the index to create train_fold and validation fold
+train_fold <- train[index, ]
+validation_fold <- train[-index, ]
+head(train_fold)
+head(validation_fold)
+```
+
+```{r message = F}
+#Fitting the linear model
+model <- lm(log(SalePrice) ~ log(totalsqft)*BedroomAbvGr + Neighborhood + LandSlope + LandContour + OverallQual + GarageCars + totalbath + FireplaceQu + totalporch + LotFrontage + totalporch*LotFrontage  + GarageType + YearBuilt*OverallQual + LotArea*LotFrontage + OverallCond + YearBuilt*BldgType + Street, data = train_fold)
+
+# Get predictions for the train_fold and validation fold datasets
+predictions <- predict(model, newdata = validation_fold)
+predict_train <- predict(model, newdata = train_fold)
+
+# Create functions for calculating RMSE and R-squared
+rmse <- function(observed, predicted) sqrt(mean((observed - predicted)^2))
+
+R2 <- function(observed, predicted){
+  TSS <- sum((observed - mean(observed))^2)
+  RSS <- sum((observed - predicted)^2)
+  1- RSS/TSS
+}
+
+#Calculating performance metrics(RMSE and R squared value) for train_fold and validation_folds
+rmse(train_fold$SalePrice, exp(predict_train))
+R2(train_fold$SalePrice, exp(predict_train))
+
+rmse(validation_fold$SalePrice, exp(predictions))
+R2(validation_fold$SalePrice, exp(predictions))
+
+#Summary Table of Model
+summary(model)
+
+```
+
+> Summary table of developed regression model with all the coefficients, RMSE and R-squared values are displayed above.
+
+# 7. Required Performance metrics
+
+The Performance metrics used to evaluate the model's performance on the training set are essential to assess how well the model is capturing the relationships in the training data.
+
+> **RMSE** is a measure of the average deviation of the predicted values from the actual values, and is therefore expressed in the same units as the target variable.
+>
+> **R-Squared** value can be interpreted as the percentage of variance in the dependent variable that is explained by the independent variables.
+>
+> -   **7.a. Performance metrics(RMSE and R - square)** are calculated for the train_fold dataset(in-sample performance) using defined R function - RMSE(Root Mean Squared Error) = \$24472.93 and R-Square Value = 0.90.The r-square value is closer to 1 which depicts that the selected variables are predicting the actual values of Sale Price of houses with an accuracy of 90%.
+>
+> -   **7.b. Performance metrics(RMSE and R - square)** are calculated for the validation_fold data set(out of sample performance). Estimated Root Mean squared error for this model = \$28563.4 and R- square value = 0.88. It can be interpreted that the selected variables are predicting the actual values of Sale Price of houses with an accuracy of 88%. This meets our benchmark value(greater than 0.85) which we have set in the earlier part(Section 1 - Introduction) of the notebook.
+
+# 8. Predicting Sale Price for test set using the model
+
+Deploy the model to whole train data set.
+
+```{r}
+# 1. Fit the model to the entire train set.
+submission_model <- lm(log(SalePrice) ~ log(totalsqft)*BedroomAbvGr + Neighborhood + LandSlope + LandContour + OverallQual + GarageCars + totalbath + FireplaceQu + totalporch + LotFrontage + totalporch*LotFrontage  + GarageType + YearBuilt*OverallQual + LotArea*LotFrontage + OverallCond + YearBuilt*BldgType + Street , data = train)
+
+summary(submission_model)
+```
+
+Deploying the same exact changes to the test. The Overall Quality variable is changed to factored value from a numeric value using the r function.
+
+```{r}
+# 2. Making changes to the test set that made to the train set.
+test <- test %>% 
+  mutate(totalsqft = TotalBsmtSF + GrLivArea + GarageArea)%>%
+  mutate(totalbath = FullBath + HalfBath + BsmtFullBath + BsmtHalfBath)%>%
+  mutate(OverallQual = factor(OverallQual))%>%
+  mutate(totalporch = WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch)%>%
+  mutate(GarageType = replace_na(data = GarageType, replace = "No Garage"))%>%
+  mutate( FireplaceQu = replace_na(data = FireplaceQu, replace = "No Fireplace"))
+```
+
+Making same changes which were deployed in train dataset to the test dataset
+
+```{r}
+# 3. Checking there are no missing observations for the selected predictors in the test set
+test <- test %>%
+  mutate(totalsqft = replace_na(totalsqft, median(totalsqft, na.rm = T)))%>%
+  mutate(totalbath = replace_na(totalbath, median(totalbath, na.rm = T)))%>%
+  mutate(totalporch = replace_na(totalporch, median(totalporch, na.rm = T)))%>%
+  mutate(GarageCars = replace_na(GarageCars, median(GarageCars, na.rm = T)))%>%
+  mutate(LotFrontage = replace_na(LotFrontage, median(LotFrontage, na.rm = T)))
+
+test %>% 
+  select(totalsqft,BedroomAbvGr, Neighborhood, LotArea, LandSlope, LandContour, OverallQual, totalbath, OverallCond, BldgType, GarageType, GarageCars, PoolArea, LotFrontage, totalporch) %>% 
+  summarize_all(count_missings) %>%
+  kable(caption = "Table of missing count in test dataset") %>% 
+  kable_styling()
+  
+```
+
+Deploying the developed model to the test dataset to get the predicted prices of houses.
+
+```{r}
+# 4. Making predictions for the test set.
+submission_predictions <- predict(submission_model, newdata = test) 
+
+head(exp(submission_predictions))
+```
+
+Formatting the result(predicted house prices) in the required Kaggle format i.e., with house id and predicted price of houses.
+
+```{r}
+# 5. Format of submission file.
+submission <- test %>% 
+  select(Id) %>% 
+  mutate(SalePrice = exp(submission_predictions))
+
+head(submission)
+
+write.csv(submission, "kaggle_final_submission.csv")
+```
+
+Submitted the predicted house prices to Kaggle submission and obtained a rank of **1897** and kaggle score of **0.14418**.
+
+![](images/image.png)
+
+# 9. Group Members and Contribution
+
+**Member 1: Sai Eshwar Tadepalli** - Contriubted in code build, analysis, documentation and team collaboration.
+
+**Member 2: Pavani Pragada** - Contributed in code build, analysis, creativity and team collaboration.
+
+**Member 3: Harichandana Gonuguntla** - Contributed in code build, analysis, quality assurance and team collaboration.
+
+**Member 4: Sushma Sree Muthyapu** - Contributed in code build, analysis, accountability and team collaboration.
