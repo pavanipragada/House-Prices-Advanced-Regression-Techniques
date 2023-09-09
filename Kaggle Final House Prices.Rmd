@@ -52,7 +52,6 @@ The dataset contains a train set, consisting of 1460 observations and 83 variabl
 20. SaleCondition: Condition of sale
 
 # 3. Missing Data
-
 > Scope: The dataset contains NA values in several columns, which need to be handled carefully during data preprocessing. However, NA represents a missing feature rather than a value when it comes to some of the variables (mentioned in the data dictionary). To overcome the problem of NA we encode these variables using 'replace_na()\` function in dplyr.
 >
 > Proposed Solution: The missing values can be imputed or removed using a variety of methods, including deletion of the entire column or row, regression imputation, mean or median imputation, and mode imputation. To avoid bias or overfitting in the models, it is essential to handle missing values properly.
@@ -92,7 +91,6 @@ train <- train %>%
 train <- train %>% 
   mutate(GarageType = replace_na(data = GarageType, replace = "No Garage"), FireplaceQu = replace_na(data = FireplaceQu, replace = "No Fireplace"))
 ```
-
 # 4. Visualizations
 
 Let's check how a variable changes with respect to our target variable. For example, take the "Overall Quality" variable and visualize it.
@@ -157,7 +155,6 @@ The steps of modeling process includes:
 lm(SalePrice ~ log(totalsqft)*BedroomAbvGr + Neighborhood + LandSlope + LandContour + OverallQual + GarageCars + totalbath + FireplaceQu + totalporch*LotFrontage  + GarageType + YearBuilt*OverallQual + LotArea*LotFrontage + OverallCond + YearBuilt*BldgType + Street, data = train) %>% summary()
 
 ```
-
 The 19 variables and 4 interactions among them taken to evaluate the model are:
 
 > **1.log(totalsqft) \* BedroomAbvGr:** This variable likely represents the size of the house (as measured by total square footage) and the number of bedrooms. It makes sense that these factors would be related to the price of a house, as larger houses with more bedrooms are generally more expensive.
