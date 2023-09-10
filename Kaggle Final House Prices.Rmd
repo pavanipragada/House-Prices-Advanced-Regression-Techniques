@@ -8,7 +8,6 @@ output:
 ```{r include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
 ```{r setup, include = TRUE}
 # Loading required libraries like tidyverse, ggplot2 and kableExtra for this project
 library(tidyverse)
